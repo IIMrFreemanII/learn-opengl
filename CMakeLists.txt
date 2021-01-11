@@ -13,10 +13,11 @@ file(GLOB SOURCE_FILES
 add_subdirectory(src/vendor/GLFW)
 add_subdirectory(src/vendor/GLAD)
 
-add_executable(${PROJECT_NAME} ${SOURCE_FILES})
+add_executable(${PROJECT_NAME} ${SOURCE_FILES} src/Shader.h)
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/GLFW/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/GLAD/include
         ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/stb_image

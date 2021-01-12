@@ -8,12 +8,14 @@ set(GLFW_INSTALL OFF CACHE BOOL "GLFW lib only")
 
 file(GLOB SOURCE_FILES
         main.cpp
+        src/vendor/stb_image/stb_image.cpp
+        src/vendor/stb_image/stb_image.h
         )
 
 add_subdirectory(src/vendor/GLFW)
 add_subdirectory(src/vendor/GLAD)
 
-add_executable(${PROJECT_NAME} ${SOURCE_FILES} src/Shader.h)
+add_executable(${PROJECT_NAME} ${SOURCE_FILES} src/Shader.h src/Camera.h)
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC

@@ -34,15 +34,24 @@ bool firstMouse = true;
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
-// lighting
-glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
-
 float cubeYRot = 0.0f;
-float ambientStrength = 0.1f;
-float specularStrength = 0.5;
-int specPow = 32;
-glm::vec3 lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-glm::vec3 objectColor = glm::vec3(1.0f, 0.5f, 0.31f);
+
+// material properties
+namespace Material {
+    glm::vec3 ambient = glm::vec3(1.0f, 0.5f, 0.31f);
+    glm::vec3 diffuse = glm::vec3(1.0f, 0.5f, 0.31f);
+    glm::vec3 specular = glm::vec3(0.5f, 0.5f, 0.5f);
+    float shininess = 32.0f;
+}
+
+// light properties
+namespace Light {
+    glm::vec3 position(1.2f, 1.0f, 2.0f);
+
+    glm::vec3 ambient = glm::vec3(0.2f, 0.2f, 0.2f);
+    glm::vec3 diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
+    glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+}
 
 int main()
 {
@@ -208,13 +217,17 @@ int main()
 
         // be sure to activate shader when setting uniforms/drawing objects
         lightingShader.use();
-        lightingShader.setVec3("objectColor", objectColor.x, objectColor.y, objectColor.z);
-        lightingShader.setVec3("lightColor", lightColor.x, lightColor.y, lightColor.z);
-        lightingShader.setVec3("lightPos", lightPos);
         lightingShader.setVec3("viewPos", camera.Position);
-        lightingShader.setFloat("ambientStrength", ambientStrength);
-        lightingShader.setFloat("specularStrength", specularStrength);
-        lightingShader.setInt("specPow", specPow);
+
+        lightingShader.setVec3("material.ambient", Material::ambient);
+        lightingShader.setVec3("material.diffuse", Material::diffuse);
+        lightingShader.setVec3("material.specular", Material::specular);
+        lightingShader.setFloat("material.shininess", Material::shininess);
+
+        lightingShader.setVec3("light.position", Light::position);
+        lightingShader.setVec3("light.ambient", Light::ambient);
+        lightingShader.setVec3("light.diffuse", Light::diffuse);
+        lightingShader.setVec3("light.specular", Light::specular);
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -239,10 +252,10 @@ int main()
         lightCubeShader.setMat4("projection", projection);
         lightCubeShader.setMat4("view", view);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, lightPos);
+        model = glm::translate(model, Light::position);
         model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
         lightCubeShader.setMat4("model", model);
-        lightCubeShader.setVec3("lightColor", lightColor);
+        lightCubeShader.setVec3("lightColor", glm::vec3(1.0f));
 
         glBindVertexArray(lightCubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
@@ -253,16 +266,26 @@ int main()
         ImGui::NewFrame();
 
         ImGui::Begin("Profiling");
-        ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        {
+            ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+        }
         ImGui::End();
 
         ImGui::Begin("Hello, world!");
-        ImGui::InputFloat("Cube Y Rot", &cubeYRot, 3, 1);
-        ImGui::ColorEdit3("Light Color", &lightColor[0]);
-        ImGui::ColorEdit3("Object Color", &objectColor[0]);
-        ImGui::SliderInt("Spec Pow", &specPow, 1, 256);
-        ImGui::SliderFloat("Ambient Strength", &ambientStrength, 0.0f, 1.0f);
-        ImGui::SliderFloat("Specular Strength", &specularStrength, 0.0f, 1.0f);
+        {
+            ImGui::InputFloat("Cube Y Rot", &cubeYRot, 3, 1);
+
+            ImGui::Text("Object Material");
+            ImGui::ColorEdit3("Ambient##1", &Material::ambient[0]);
+            ImGui::ColorEdit3("Diffuse##1", &Material::diffuse[0]);
+            ImGui::ColorEdit3("Specular##1", &Material::specular[0]);
+            ImGui::SliderFloat("Shininess##1", &Material::shininess, 1, 258);
+
+            ImGui::Text("Light Settings");
+            ImGui::ColorEdit3("Ambient##2", &Light::ambient[0]);
+            ImGui::ColorEdit3("Diffuse##2", &Light::diffuse[0]);
+            ImGui::ColorEdit3("Specular##2", &Light::specular[0]);
+        }
         ImGui::End();
 
         // Rendering

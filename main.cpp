@@ -39,16 +39,26 @@ float cubeYRot = 0.0f;
 
 // material properties
 namespace Material {
-    float shininess = 64.0f;
+    float shininess = 32.0f;
 }
 
 // light properties
 namespace Light {
+    glm::vec3 direction(-0.2f, -1.0f, -0.3f);
     glm::vec3 position(1.2f, 1.0f, 2.0f);
+    // in degrees
+    float innerCutOff = 12.5f;
+    float outerCutOff = 17.5f;
 
-    glm::vec3 ambient = glm::vec3(0.2f, 0.2f, 0.2f);
-    glm::vec3 diffuse = glm::vec3(0.5f, 0.5f, 0.5f);
+    glm::vec3 ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+    glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
     glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    float constant = 1.0f;
+    // like radius
+    float linear = 0.09f;
+    // like intensity
+    float quadratic = 0.032f;
 }
 
 int main()
@@ -168,6 +178,20 @@ int main()
             -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,  0.0f, 1.0f
     };
 
+    // positions all containers
+    glm::vec3 cubePositions[] = {
+            glm::vec3( 0.0f,  0.0f,  0.0f),
+            glm::vec3( 2.0f,  5.0f, -15.0f),
+            glm::vec3(-1.5f, -2.2f, -2.5f),
+            glm::vec3(-3.8f, -2.0f, -12.3f),
+            glm::vec3( 2.4f, -0.4f, -3.5f),
+            glm::vec3(-1.7f,  3.0f, -7.5f),
+            glm::vec3( 1.3f, -2.0f, -2.5f),
+            glm::vec3( 1.5f,  2.0f, -2.5f),
+            glm::vec3( 1.5f,  0.2f, -1.5f),
+            glm::vec3(-1.3f,  1.0f, -1.5f)
+    };
+
     // first, configure the cube's VAO (and VBO)
     unsigned int VBO, cubeVAO;
     glGenVertexArrays(1, &cubeVAO);
@@ -224,6 +248,12 @@ int main()
 
         // be sure to activate shader when setting uniforms/drawing objects
         lightingShader.use();
+//        lightingShader.setVec3("light.direction", Light::direction);
+//        lightingShader.setVec3("light.position", Light::position);
+        lightingShader.setVec3("light.direction", camera.Front);
+        lightingShader.setVec3("light.position", camera.Position);
+        lightingShader.setFloat("light.innerCutOff", glm::cos(glm::radians(Light::innerCutOff)));
+        lightingShader.setFloat("light.outerCutOff", glm::cos(glm::radians(Light::outerCutOff)));
         lightingShader.setVec3("viewPos", camera.Position);
 
         lightingShader.setInt("material.diffuse", 0);
@@ -231,10 +261,13 @@ int main()
 
         lightingShader.setFloat("material.shininess", Material::shininess);
 
-        lightingShader.setVec3("light.position", Light::position);
         lightingShader.setVec3("light.ambient", Light::ambient);
         lightingShader.setVec3("light.diffuse", Light::diffuse);
         lightingShader.setVec3("light.specular", Light::specular);
+
+        lightingShader.setFloat("light.constant",  Light::constant);
+        lightingShader.setFloat("light.linear",    Light::linear);
+        lightingShader.setFloat("light.quadratic", Light::quadratic);
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -246,8 +279,6 @@ int main()
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::rotate(model, glm::radians(cubeYRot), glm::vec3(0, 1, 0));
         lightingShader.setMat4("model", model);
-        glm::mat3 normalMat = glm::mat3(glm::transpose(glm::inverse(model)));
-        lightingShader.setMat3("normalMat", normalMat);
 
         // bind diffuse map
         glActiveTexture(GL_TEXTURE0);
@@ -256,23 +287,35 @@ int main()
         glActiveTexture(GL_TEXTURE1);
         glBindTexture(GL_TEXTURE_2D, specularMap);
 
-        // render the cube
+        // render containers
         glBindVertexArray(cubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        for (unsigned int i = 0; i < 10; i++)
+        {
+            // calculate the model matrix for each object and pass it to shader before drawing
+            glm::mat4 model = glm::mat4(1.0f);
+            model = glm::translate(model, cubePositions[i]);
+            float angle = 20.0f * i;
+            model = glm::rotate(model, glm::radians(angle), glm::vec3(1.0f, 0.3f, 0.5f));
+            lightingShader.setMat4("model", model);
 
+            glm::mat3 normalMat = glm::mat3(glm::transpose(glm::inverse(model)));
+            lightingShader.setMat3("normalMat", normalMat);
 
-        // also draw the lamp object
-        lightCubeShader.use();
-        lightCubeShader.setMat4("projection", projection);
-        lightCubeShader.setMat4("view", view);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, Light::position);
-        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-        lightCubeShader.setMat4("model", model);
-        lightCubeShader.setVec3("lightColor", glm::vec3(1.0f));
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
-        glBindVertexArray(lightCubeVAO);
-        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // again, a lamp object is weird when we only have a spot light, don't render the light object
+//        lightCubeShader.use();
+//        lightCubeShader.setMat4("projection", projection);
+//        lightCubeShader.setMat4("view", view);
+//        model = glm::mat4(1.0f);
+//        model = glm::translate(model, Light::position);
+//        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+//        lightCubeShader.setMat4("model", model);
+//        lightCubeShader.setVec3("lightColor", glm::vec3(1.0f));
+//
+//        glBindVertexArray(lightCubeVAO);
+//        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -293,9 +336,17 @@ int main()
             ImGui::SliderFloat("Shininess##1", &Material::shininess, 1, 258);
 
             ImGui::Text("Light Settings");
+//            ImGui::DragFloat3("Position##1", &Light::position[0], 0.1f);
+//            ImGui::DragFloat3("Direction##1", &Light::direction[0], 0.1f, -1.0f, 1.0f);
+
             ImGui::ColorEdit3("Ambient##2", &Light::ambient[0]);
             ImGui::ColorEdit3("Diffuse##2", &Light::diffuse[0]);
             ImGui::ColorEdit3("Specular##2", &Light::specular[0]);
+
+            ImGui::DragFloat("Linear", &Light::linear, 0.001f, 0.00001f, 1.0f);
+            ImGui::DragFloat("InnerCutOff", &Light::innerCutOff, 1.0f);
+            ImGui::DragFloat("OuterCutOff", &Light::outerCutOff, 1.0f);
+            ImGui::DragFloat("Quadratic", &Light::quadratic, 0.001f, 0.00001f, 1.0f);
         }
         ImGui::End();
 

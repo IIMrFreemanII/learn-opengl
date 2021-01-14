@@ -8,10 +8,17 @@ struct Material {
 
 struct Light {
     vec3 position;
+    vec3 direction;
+    float innerCutOff;
+    float outerCutOff;
 
     vec3 ambient;
     vec3 diffuse;
     vec3 specular;
+
+    float constant;
+    float linear;
+    float quadratic;
 };
 
 out vec4 FragColor;
@@ -27,25 +34,39 @@ uniform Light light;
 
 void main()
 {
-    vec3 diffuseMapColor = texture(material.diffuse, TexCoords).rgb;
-    vec3 specularMapColor = texture(material.specular, TexCoords).rgb;
-
     // ambient
-    vec3 ambient = light.ambient * diffuseMapColor;
+    vec3 ambient = light.ambient * texture(material.diffuse, TexCoords).rgb;
 
     // diffuse
     vec3 norm = normalize(Normal);
     vec3 lightDir = normalize(light.position - FragPos);
     float diff = max(dot(norm, lightDir), 0.0);
-    vec3 diffuse = light.diffuse * diff * diffuseMapColor;
+    vec3 diffuse = light.diffuse * diff * texture(material.diffuse, TexCoords).rgb;
 
     // specular
     vec3 viewDir = normalize(viewPos - FragPos);
     vec3 reflectDir = reflect(-lightDir, norm);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);
-    vec3 specular = light.specular * spec * specularMapColor;
+    vec3 specular = light.specular * spec * texture(material.specular, TexCoords).rgb;
 
-    vec3 result = ambient + diffuse + specular;
+    // spotlight (soft edges)
+    float theta = dot(lightDir, normalize(-light.direction));
+    float epsilon = light.innerCutOff - light.outerCutOff;
+    // remember that we're working with angles as cosines instead of degrees so innerCutOff > outerCutOff
+    // find normalized value between outerCutOff and innerCutOff
+    // outerCutOff and innerCutOff are inverted because they are cosine values
+    float intensity = clamp((theta - light.outerCutOff) / epsilon, 0.0, 1.0);
+    diffuse *= intensity;
+    specular *= intensity;
 
-    FragColor = vec4(result, 1.0);
+    // attenuation
+    float distance = length(light.position - FragPos);
+    float attenuation = 1.0 / (light.constant + light.linear * distance + light.quadratic * (distance * distance));
+    ambient *= attenuation;
+    diffuse *= attenuation;
+    specular *= attenuation;
+
+    vec3 color = ambient + diffuse + specular;
+
+    FragColor = vec4(color, 1.0);
 }

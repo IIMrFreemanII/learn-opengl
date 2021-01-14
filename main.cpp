@@ -35,20 +35,22 @@ bool firstMouse = true;
 float deltaTime = 0.0f;	// time between current frame and last frame
 float lastFrame = 0.0f;
 
-float cubeYRot = 0.0f;
-
 // material properties
 namespace Material {
     float shininess = 32.0f;
 }
 
 // light properties
-namespace Light {
+namespace DirLight {
     glm::vec3 direction(-0.2f, -1.0f, -0.3f);
+
+    glm::vec3 ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+    glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+    glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+}
+
+namespace PointLight {
     glm::vec3 position(1.2f, 1.0f, 2.0f);
-    // in degrees
-    float innerCutOff = 12.5f;
-    float outerCutOff = 17.5f;
 
     glm::vec3 ambient = glm::vec3(0.1f, 0.1f, 0.1f);
     glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
@@ -60,6 +62,39 @@ namespace Light {
     // like intensity
     float quadratic = 0.032f;
 }
+
+namespace SpotLight {
+    glm::vec3 position(1.2f, 1.0f, 2.0f);
+    glm::vec3 direction(-0.2f, -1.0f, -0.3f);
+
+    glm::vec3 ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+    glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+    glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+
+    float constant = 1.0f;
+    // like radius
+    float linear = 0.09f;
+    // like intensity
+    float quadratic = 0.032f;
+}
+
+//namespace Light {
+//
+//    glm::vec3 position(1.2f, 1.0f, 2.0f);
+//    // in degrees
+//    float innerCutOff = 12.5f;
+//    float outerCutOff = 17.5f;
+//
+//    glm::vec3 ambient = glm::vec3(0.1f, 0.1f, 0.1f);
+//    glm::vec3 diffuse = glm::vec3(0.8f, 0.8f, 0.8f);
+//    glm::vec3 specular = glm::vec3(1.0f, 1.0f, 1.0f);
+//
+//    float constant = 1.0f;
+//    // like radius
+//    float linear = 0.09f;
+//    // like intensity
+//    float quadratic = 0.032f;
+//}
 
 int main()
 {
@@ -191,6 +226,13 @@ int main()
             glm::vec3( 1.5f,  0.2f, -1.5f),
             glm::vec3(-1.3f,  1.0f, -1.5f)
     };
+    // positions of the point lights
+    glm::vec3 pointLightPositions[] = {
+            glm::vec3( 0.7f,  0.2f,  2.0f),
+            glm::vec3( 2.3f, -3.3f, -4.0f),
+            glm::vec3(-4.0f,  2.0f, -12.0f),
+            glm::vec3( 0.0f,  0.0f, -3.0f)
+    };
 
     // first, configure the cube's VAO (and VBO)
     unsigned int VBO, cubeVAO;
@@ -228,6 +270,10 @@ int main()
     unsigned int diffuseMap = loadTexture("assets/textures/container2.png");
     unsigned int specularMap = loadTexture("assets/textures/container2_specular.png");
 
+    lightingShader.use();
+    lightingShader.setInt("material.diffuse", 0);
+    lightingShader.setInt("material.specular", 1);
+
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window)) {
@@ -248,26 +294,44 @@ int main()
 
         // be sure to activate shader when setting uniforms/drawing objects
         lightingShader.use();
-//        lightingShader.setVec3("light.direction", Light::direction);
-//        lightingShader.setVec3("light.position", Light::position);
-        lightingShader.setVec3("light.direction", camera.Front);
-        lightingShader.setVec3("light.position", camera.Position);
-        lightingShader.setFloat("light.innerCutOff", glm::cos(glm::radians(Light::innerCutOff)));
-        lightingShader.setFloat("light.outerCutOff", glm::cos(glm::radians(Light::outerCutOff)));
         lightingShader.setVec3("viewPos", camera.Position);
-
-        lightingShader.setInt("material.diffuse", 0);
-        lightingShader.setInt("material.specular", 1);
-
         lightingShader.setFloat("material.shininess", Material::shininess);
 
-        lightingShader.setVec3("light.ambient", Light::ambient);
-        lightingShader.setVec3("light.diffuse", Light::diffuse);
-        lightingShader.setVec3("light.specular", Light::specular);
+        /*
+           Here we set all the uniforms for the 5/6 types of lights we have. We have to set them manually and index
+           the proper PointLight struct in the array to set each uniform variable. This can be done more code-friendly
+           by defining light types as classes and set their values in there, or by using a more efficient uniform approach
+           by using 'Uniform buffer objects', but that is something we'll discuss in the 'Advanced GLSL' tutorial.
+        */
+        // directional light
+        lightingShader.setVec3("dirLight.direction", -0.2f, -1.0f, -0.3f);
+        lightingShader.setVec3("dirLight.ambient", 0.05f, 0.05f, 0.05f);
+        lightingShader.setVec3("dirLight.diffuse", 0.4f, 0.4f, 0.4f);
+        lightingShader.setVec3("dirLight.specular", 0.5f, 0.5f, 0.5f);
 
-        lightingShader.setFloat("light.constant",  Light::constant);
-        lightingShader.setFloat("light.linear",    Light::linear);
-        lightingShader.setFloat("light.quadratic", Light::quadratic);
+        // point lights
+        for (int i = 0; i < 4; ++i) {
+            std::string number = std::to_string(i);
+            lightingShader.setVec3("pointLights[" + number + "].position", pointLightPositions[i]);
+            lightingShader.setVec3("pointLights[" + number + "].ambient", 0.05f, 0.05f, 0.05f);
+            lightingShader.setVec3("pointLights[" + number + "].diffuse", 0.8f, 0.8f, 0.8f);
+            lightingShader.setVec3("pointLights[" + number + "].specular", 1.0f, 1.0f, 1.0f);
+            lightingShader.setFloat("pointLights[" + number + "].constant", 1.0f);
+            lightingShader.setFloat("pointLights[" + number + "].linear", 0.09);
+            lightingShader.setFloat("pointLights[" + number + "].quadratic", 0.032);
+        }
+
+        // spotLight
+        lightingShader.setVec3("spotLight.position", camera.Position);
+        lightingShader.setVec3("spotLight.direction", camera.Front);
+        lightingShader.setVec3("spotLight.ambient", 0.0f, 0.0f, 0.0f);
+        lightingShader.setVec3("spotLight.diffuse", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("spotLight.specular", 1.0f, 1.0f, 1.0f);
+        lightingShader.setFloat("spotLight.constant", 1.0f);
+        lightingShader.setFloat("spotLight.linear", 0.09);
+        lightingShader.setFloat("spotLight.quadratic", 0.032);
+        lightingShader.setFloat("spotLight.cutOff", glm::cos(glm::radians(12.5f)));
+        lightingShader.setFloat("spotLight.outerCutOff", glm::cos(glm::radians(15.0f)));
 
         // view/projection transformations
         glm::mat4 projection = glm::perspective(glm::radians(camera.Zoom), (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
@@ -277,7 +341,6 @@ int main()
 
         // world transformation
         glm::mat4 model = glm::mat4(1.0f);
-        model = glm::rotate(model, glm::radians(cubeYRot), glm::vec3(0, 1, 0));
         lightingShader.setMat4("model", model);
 
         // bind diffuse map
@@ -304,18 +367,21 @@ int main()
             glDrawArrays(GL_TRIANGLES, 0, 36);
         }
 
-        // again, a lamp object is weird when we only have a spot light, don't render the light object
-//        lightCubeShader.use();
-//        lightCubeShader.setMat4("projection", projection);
-//        lightCubeShader.setMat4("view", view);
-//        model = glm::mat4(1.0f);
-//        model = glm::translate(model, Light::position);
-//        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
-//        lightCubeShader.setMat4("model", model);
-//        lightCubeShader.setVec3("lightColor", glm::vec3(1.0f));
-//
-//        glBindVertexArray(lightCubeVAO);
-//        glDrawArrays(GL_TRIANGLES, 0, 36);
+        // also draw the lamp object(s)
+        lightCubeShader.use();
+        lightCubeShader.setMat4("projection", projection);
+        lightCubeShader.setMat4("view", view);
+
+        // we now draw as many light bulbs as we have point lights.
+        glBindVertexArray(lightCubeVAO);
+        for (unsigned int i = 0; i < 4; i++)
+        {
+            model = glm::mat4(1.0f);
+            model = glm::translate(model, pointLightPositions[i]);
+            model = glm::scale(model, glm::vec3(0.2f)); // Make it a smaller cube
+            lightCubeShader.setMat4("model", model);
+            glDrawArrays(GL_TRIANGLES, 0, 36);
+        }
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL3_NewFrame();
@@ -330,23 +396,8 @@ int main()
 
         ImGui::Begin("Hello, world!");
         {
-            ImGui::InputFloat("Cube Y Rot", &cubeYRot, 3, 1);
-
             ImGui::Text("Object Material");
             ImGui::SliderFloat("Shininess##1", &Material::shininess, 1, 258);
-
-            ImGui::Text("Light Settings");
-//            ImGui::DragFloat3("Position##1", &Light::position[0], 0.1f);
-//            ImGui::DragFloat3("Direction##1", &Light::direction[0], 0.1f, -1.0f, 1.0f);
-
-            ImGui::ColorEdit3("Ambient##2", &Light::ambient[0]);
-            ImGui::ColorEdit3("Diffuse##2", &Light::diffuse[0]);
-            ImGui::ColorEdit3("Specular##2", &Light::specular[0]);
-
-            ImGui::DragFloat("Linear", &Light::linear, 0.001f, 0.00001f, 1.0f);
-            ImGui::DragFloat("InnerCutOff", &Light::innerCutOff, 1.0f);
-            ImGui::DragFloat("OuterCutOff", &Light::outerCutOff, 1.0f);
-            ImGui::DragFloat("Quadratic", &Light::quadratic, 0.001f, 0.00001f, 1.0f);
         }
         ImGui::End();
 

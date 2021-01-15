@@ -3,32 +3,41 @@ project(learn-opengl)
 
 set(CMAKE_CXX_STANDARD 20)
 
-set(GLFW_BUILD_DOCS OFF CACHE BOOL "GLFW lib only")
-set(GLFW_INSTALL OFF CACHE BOOL "GLFW lib only")
-
-file(GLOB SOURCE_FILES
+set(SOURCE_FILES
         main.cpp
         src/vendor/stb_image/stb_image.cpp
         src/vendor/stb_image/stb_image.h
         src/Shader.h
         src/Camera.h
         src/ImGui/ImGuiBuild.cpp
+        src/Mesh.h
+        src/Model.h
         )
 
 add_subdirectory(src/vendor/GLFW)
+set(GLFW_BUILD_DOCS OFF CACHE BOOL "GLFW lib only")
+set(GLFW_INSTALL OFF CACHE BOOL "GLFW lib only")
+
 add_subdirectory(src/vendor/GLAD)
 add_subdirectory(src/vendor/imgui)
+add_subdirectory(src/vendor/assimp)
+
+set(BUILD_SHARED_LIBS OFF)
+set(ASSIMP_INSTALL OFF)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
 target_include_directories(${PROJECT_NAME}
         PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/GLFW/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/GLAD/include
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/stb_image
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/glm
-        ${CMAKE_CURRENT_SOURCE_DIR}/src/vendor/imgui
+        src
+        src/vendor/GLFW/include
+        src/vendor/GLAD/include
+        src/vendor/stb_image
+        src/vendor/glm
+        src/vendor/imgui
+        src/vendor/assimp/include
 )
 
-target_link_libraries(${PROJECT_NAME} glfw Glad ImGui opengl32)
+target_link_directories(${PROJECT_NAME} PUBLIC src/vendor/assimp/lib)
+
+target_link_libraries(${PROJECT_NAME} glfw Glad ImGui opengl32 assimp)

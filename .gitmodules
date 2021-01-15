@@ -8,3 +8,6 @@
 	path = src/vendor/imgui
 	url = https://github.com/IIMrFreemanII/imgui
 	branch = docking
+[submodule "src/vendor/assimp"]
+	path = src/vendor/assimp
+	url = https://github.com/IIMrFreemanII/assimp

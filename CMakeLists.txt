@@ -14,16 +14,17 @@ set(SOURCE_FILES
         src/Model.h
         )
 
-add_subdirectory(src/vendor/GLFW)
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "GLFW lib only")
 set(GLFW_INSTALL OFF CACHE BOOL "GLFW lib only")
+add_subdirectory(src/vendor/GLFW)
 
 add_subdirectory(src/vendor/GLAD)
 add_subdirectory(src/vendor/imgui)
+
+set(BUILD_SHARED_LIBS ON)
+set(ASSIMP_INSTALL OFF)
 add_subdirectory(src/vendor/assimp)
 
-set(BUILD_SHARED_LIBS OFF)
-set(ASSIMP_INSTALL OFF)
 
 add_executable(${PROJECT_NAME} ${SOURCE_FILES})
 
@@ -41,3 +42,23 @@ target_include_directories(${PROJECT_NAME}
 target_link_directories(${PROJECT_NAME} PUBLIC src/vendor/assimp/lib)
 
 target_link_libraries(${PROJECT_NAME} glfw Glad ImGui opengl32 assimp)
+
+if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+    add_custom_command(
+            TARGET
+            ${PROJECT_NAME}
+            POST_BUILD COMMAND
+            ${CMAKE_COMMAND} -E copy
+            "${CMAKE_BINARY_DIR}/src/vendor/assimp/bin/libassimp${CMAKE_DEBUG_POSTFIX}.dll"
+            ${CMAKE_BINARY_DIR}/.
+    )
+else()
+    add_custom_command(
+            TARGET
+            ${PROJECT_NAME}
+            POST_BUILD COMMAND
+            ${CMAKE_COMMAND} -E copy
+            "${CMAKE_BINARY_DIR}/src/vendor/assimp/bin/libassimp.dll"
+            ${CMAKE_BINARY_DIR}/.
+    )
+endif()

@@ -12,7 +12,7 @@ set(SOURCE_FILES
         src/ImGui/ImGuiBuild.cpp
         src/Mesh.h
         src/Model.h
-        )
+        src/Light.h src/Material.h)
 
 set(GLFW_BUILD_DOCS OFF CACHE BOOL "GLFW lib only")
 set(GLFW_INSTALL OFF CACHE BOOL "GLFW lib only")
